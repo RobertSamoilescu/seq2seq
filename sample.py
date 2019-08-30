@@ -61,6 +61,7 @@ if opt.load_checkpoint is not None:
 else:
     # Prepare dataset
     src = SourceField()
+    ctx = SourceField()
     tgt = TargetField()
     max_len = 50
 
@@ -69,15 +70,17 @@ else:
 
     train = torchtext.data.TabularDataset(
         path="data/pp_train1.tsv", format='tsv',
-        fields=[('src', src), ('tgt', tgt)],
+        fields=[('src', src), ('ctx', ctx), ('tgt', tgt)],
     )
     dev = torchtext.data.TabularDataset(
         path="data/pp_test1.tsv", format='tsv',
-        fields=[('src', src), ('tgt', tgt)],
+        fields=[('src', src), ('ctx', ctx), ('tgt', tgt)],
     )
     src.build_vocab(train, max_size=50000)
+    ctx.build_vocab(train, max_size=50000)
     tgt.build_vocab(train, max_size=50000)
     input_vocab = src.vocab
+    context_vocab = ctx.vocab
     output_vocab = tgt.vocab
 
     # NOTE: If the source field name and the target field name
@@ -103,7 +106,7 @@ else:
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size,
                              bidirectional=bidirectional, variable_lengths=True, n_layers=n_layers,
                              dropout_p=0.5)
-        context_encoder = EncoderRNN(len(tgt.vocab), max_len, hidden_size,
+        context_encoder = EncoderRNN(len(ctx.vocab), max_len, hidden_size,
                                      dropout_p=0.5, bidirectional=bidirectional, n_layers=n_layers)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
                              dropout_p=0.5, use_attention=True, bidirectional=bidirectional,
@@ -124,7 +127,7 @@ else:
         # optimizer.set_scheduler(scheduler)
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=100,
+    t = SupervisedTrainer(loss=loss, batch_size=25,
                           checkpoint_every=500,
                           print_every=10, expt_dir=opt.expt_dir)
 

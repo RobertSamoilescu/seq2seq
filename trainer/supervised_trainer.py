@@ -51,15 +51,16 @@ class SupervisedTrainer(object):
 
         self.logger = logging.getLogger(__name__)
 
-    def _train_batch(self, input_variable, input_lengths, target_variable, model, teacher_forcing_ratio):
+    def _train_batch(self, input_variable, input_lengths, context_variable, context_lengths,
+                     target_variable, model, teacher_forcing_ratio):
         loss = self.loss
 
         # Forward propagation
         decoder_outputs, decoder_hidden, other = model(
             input_variable=input_variable,
             input_lengths=input_lengths,
-            context_variable=target_variable, # TODO modify to the real context
-            context_lengths=None,
+            context_variable=context_variable,
+            context_lengths=context_lengths,
             target_variable=target_variable,
             teacher_forcing_ratio=teacher_forcing_ratio
         )
@@ -109,9 +110,17 @@ class SupervisedTrainer(object):
                 step_elapsed += 1
 
                 input_variables, input_lengths = getattr(batch, "src")
+                context_variables, context_lengths = getattr(batch, "ctx")
                 target_variables = getattr(batch, "tgt")
 
-                loss = self._train_batch(input_variables, input_lengths.tolist(), target_variables, model, teacher_forcing_ratio)
+                loss = self._train_batch(
+                    input_variable=input_variables,
+                    input_lengths=input_lengths.tolist(),
+                    context_variable=context_variables,
+                    context_lengths=context_lengths,
+                    target_variable=target_variables,
+                    model=model,
+                    teacher_forcing_ratio=teacher_forcing_ratio)
 
                 # Record average loss
                 print_loss_total += loss

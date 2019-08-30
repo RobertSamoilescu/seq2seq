@@ -44,6 +44,7 @@ class Evaluator(object):
             sort=True, sort_key=lambda x: len(x.src),
             device=device, train=False)
         src_vocab = data.fields["src"].vocab
+        ctx_vocab = data.fields["ctx"].vocab
         tgt_vocab = data.fields["tgt"].vocab
         pad = tgt_vocab.stoi[data.fields["tgt"].pad_token]
 
@@ -53,14 +54,15 @@ class Evaluator(object):
             other = None
 
             for batch in batch_iterator:
-                input_variables, input_lengths  = getattr(batch, "src")
+                input_variables, input_lengths = getattr(batch, "src")
+                context_variables, context_lengths = getattr(batch, "ctx")
                 target_variables = getattr(batch, "tgt")
 
                 decoder_outputs, decoder_hidden, other = model(
                     input_variables,
                     input_lengths.tolist(),
-                    target_variables, # TODO modify to the real context
-                    None,
+                    context_variables,
+                    context_lengths,
                     target_variables)
 
                 # Evaluation
@@ -78,11 +80,14 @@ class Evaluator(object):
             if writer:
                 sample = np.random.randint(0, input_variables.shape[0])
                 input_str = " ".join(list(map(lambda index: src_vocab.itos[index], input_variables[sample].cpu().numpy())))
+                ctx_str = " ".join(list(map(lambda index: ctx_vocab.itos[index], context_variables[sample].cpu().numpy())))
+
                 seq = torch.stack(other['sequence'], dim=1).squeeze(2)
                 output_str = " ".join(list(map(lambda index: tgt_vocab.itos[index], seq[sample].cpu().numpy())))
                 target_str = " ".join(list(map(lambda index: tgt_vocab.itos[index], target_variables[sample].cpu().numpy())))
 
                 writer.add_text("input", input_str, n_iter)
+                writer.add_text("context", ctx_str, n_iter)
                 writer.add_text("output", output_str, n_iter)
                 writer.add_text("target", target_str, n_iter)
 

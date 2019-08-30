@@ -53,9 +53,17 @@ class SupervisedTrainer(object):
 
     def _train_batch(self, input_variable, input_lengths, target_variable, model, teacher_forcing_ratio):
         loss = self.loss
+
         # Forward propagation
-        decoder_outputs, decoder_hidden, other = model(input_variable, input_lengths, target_variable,
-                                                       teacher_forcing_ratio=teacher_forcing_ratio)
+        decoder_outputs, decoder_hidden, other = model(
+            input_variable=input_variable,
+            input_lengths=input_lengths,
+            context_variable=target_variable, # TODO modify to the real context
+            context_lengths=None,
+            target_variable=target_variable,
+            teacher_forcing_ratio=teacher_forcing_ratio
+        )
+
         # Get loss
         loss.reset()
         for step, step_output in enumerate(decoder_outputs):

@@ -51,7 +51,7 @@ class Attention(nn.Module):
         """
         self.mask = mask
 
-    def forward(self, output, context):
+    def forward(self, output, context, complete=True):
         batch_size = output.size(0)
         hidden_size = output.size(2)
         input_size = context.size(1)
@@ -64,9 +64,11 @@ class Attention(nn.Module):
         # (batch, out_len, in_len) * (batch, in_len, dim) -> (batch, out_len, dim)
         mix = torch.bmm(attn, context)
 
-        # concat -> (batch, out_len, 2*dim)
-        combined = torch.cat((mix, output), dim=2)
-        # output -> (batch, out_len, dim)
-        output = F.tanh(self.linear_out(combined.view(-1, 2 * hidden_size))).view(batch_size, -1, hidden_size)
+        if complete:
+            # concat -> (batch, out_len, 2*dim)
+            combined = torch.cat((mix, output), dim=2)
+            # output -> (batch, out_len, dim)
+            output = F.tanh(self.linear_out(combined.view(-1, 2 * hidden_size))).view(batch_size, -1, hidden_size)
+            return output, attn
 
-        return output, attn
+        return mix, attn

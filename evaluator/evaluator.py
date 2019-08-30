@@ -56,7 +56,12 @@ class Evaluator(object):
                 input_variables, input_lengths  = getattr(batch, "src")
                 target_variables = getattr(batch, "tgt")
 
-                decoder_outputs, decoder_hidden, other = model(input_variables, input_lengths.tolist(), target_variables)
+                decoder_outputs, decoder_hidden, other = model(
+                    input_variables,
+                    input_lengths.tolist(),
+                    target_variables, # TODO modify to the real context
+                    None,
+                    target_variables)
 
                 # Evaluation
                 seqlist = other['sequence']

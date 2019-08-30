@@ -63,14 +63,16 @@ else:
     src = SourceField()
     tgt = TargetField()
     max_len = 50
+
     def len_filter(example):
         return len(example.src) <= max_len and len(example.tgt) <= max_len
+
     train = torchtext.data.TabularDataset(
-        path="data/train1.tsv", format='tsv',
+        path="data/pp_train1.tsv", format='tsv',
         fields=[('src', src), ('tgt', tgt)],
     )
     dev = torchtext.data.TabularDataset(
-        path="data/test1.tsv", format='tsv',
+        path="data/pp_test1.tsv", format='tsv',
         fields=[('src', src), ('tgt', tgt)],
     )
     src.build_vocab(train, max_size=50000)
@@ -95,15 +97,18 @@ else:
     optimizer = None
     if not opt.resume:
         # Initialize model
-        hidden_size=128
+        hidden_size = 256
         bidirectional = True
-        n_layers=1
+        n_layers = 1
         encoder = EncoderRNN(len(src.vocab), max_len, hidden_size,
-                             bidirectional=bidirectional, variable_lengths=True, n_layers=n_layers)
+                             bidirectional=bidirectional, variable_lengths=True, n_layers=n_layers,
+                             dropout_p=0.5)
+        context_encoder = EncoderRNN(len(tgt.vocab), max_len, hidden_size,
+                                     dropout_p=0.5, bidirectional=bidirectional, n_layers=n_layers)
         decoder = DecoderRNN(len(tgt.vocab), max_len, hidden_size * 2 if bidirectional else hidden_size,
-                             dropout_p=0.2, use_attention=True, bidirectional=bidirectional,
+                             dropout_p=0.5, use_attention=True, bidirectional=bidirectional,
                              eos_id=tgt.eos_id, sos_id=tgt.sos_id, n_layers=n_layers)
-        seq2seq = Seq2seq(encoder, decoder)
+        seq2seq = Seq2seq(encoder, context_encoder, decoder)
         if torch.cuda.is_available():
             seq2seq.cuda()
 
@@ -114,18 +119,19 @@ else:
         # explicitly constructing the objects and pass to the trainer.
         #
         # optimizer = Optimizer(torch.optim.Adam(seq2seq.parameters()), max_grad_norm=5)
+        # optimizer = Optimizer(torch.optim.RMSprop(seq2seq.parameters(), lr=1e-4), max_grad_norm=5)
         # scheduler = StepLR(optimizer.optimizer, 1)
         # optimizer.set_scheduler(scheduler)
 
     # train
-    t = SupervisedTrainer(loss=loss, batch_size=10,
+    t = SupervisedTrainer(loss=loss, batch_size=100,
                           checkpoint_every=500,
                           print_every=10, expt_dir=opt.expt_dir)
 
     seq2seq = t.train(seq2seq, train,
                       num_epochs=10000, dev_data=dev,
                       optimizer=optimizer,
-                      teacher_forcing_ratio=1.,
+                      teacher_forcing_ratio=.5,
                       resume=opt.resume)
 
 predictor = Predictor(seq2seq, input_vocab, output_vocab)
